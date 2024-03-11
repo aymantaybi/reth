@@ -255,7 +255,7 @@ pin-project = "1.0.12"
 futures-util = "0.3.25"
 
 # p2p
-discv5 = "0.4"
+discv5 = "0.4.1"
 igd-next = "0.14.3"
 
 # rpc
@@ -269,7 +269,7 @@ secp256k1 = { version = "0.28", default-features = false, features = [
     "rand-std",
     "recovery",
 ] }
-enr = { version = "0.10", default-features = false, features = ["k256"] }
+enr = { version = "0.10.1", default-features = false, features = ["k256"] }
 
 # for eip-4844
 c-kzg = "0.4.2"

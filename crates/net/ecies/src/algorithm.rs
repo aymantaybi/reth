@@ -251,7 +251,7 @@ impl ECIES {
         let msg = x ^ self.nonce;
         let (rec_id, sig) = SECP256K1
             .sign_ecdsa_recoverable(
-                &secp256k1::Message::from_digest_slice(msg.as_slice()).unwrap(),
+                &secp256k1::Message::from_digest(msg.0),
                 &self.ephemeral_secret_key,
             )
             .serialize_compact();
@@ -324,13 +324,10 @@ impl ECIES {
         self.remote_nonce = Some(data.get_next()?.ok_or(ECIESErrorImpl::InvalidAuthData)?);
 
         let x = ecdh_x(&self.remote_public_key.unwrap(), &self.secret_key);
-        self.remote_ephemeral_public_key = Some(
-            SECP256K1.recover_ecdsa(
-                &secp256k1::Message::from_digest_slice((x ^ self.remote_nonce.unwrap()).as_ref())
-                    .unwrap(),
-                &signature,
-            )?,
-        );
+        self.remote_ephemeral_public_key = Some(SECP256K1.recover_ecdsa(
+            &secp256k1::Message::from_digest((x ^ self.remote_nonce.unwrap()).0),
+            &signature,
+        )?);
         self.ephemeral_shared_secret =
             Some(ecdh_x(&self.remote_ephemeral_public_key.unwrap(), &self.ephemeral_secret_key));
 
