@@ -16,6 +16,7 @@
 //! to the local node. Once a (tcp) connection is established, both peers start to authenticate a [RLPx session](https://github.com/ethereum/devp2p/blob/master/rlpx.md) via a handshake. If the handshake was successful, both peers announce their capabilities and are now ready to exchange sub-protocol messages via the RLPx session.
 
 use crate::{
+    blocks::NetworkBlockEvent,
     budget::{DEFAULT_BUDGET_TRY_DRAIN_NETWORK_HANDLE_CHANNEL, DEFAULT_BUDGET_TRY_DRAIN_SWARM},
     config::NetworkConfig,
     discovery::Discovery,
@@ -111,6 +112,9 @@ pub struct NetworkManager<C> {
     metrics: NetworkMetrics,
     /// Disconnect metrics for the Network
     disconnect_metrics: DisconnectMetrics,
+    /// Sender half to send events to the
+    /// [`TransactionsManager`](crate::transactions::TransactionsManager) task, if configured.
+    network_block_events_tx: Option<mpsc::UnboundedSender<NetworkBlockEvent>>,
 }
 
 // === impl NetworkManager ===
@@ -120,6 +124,11 @@ impl<C> NetworkManager<C> {
     pub fn set_transactions(&mut self, tx: mpsc::UnboundedSender<NetworkTransactionEvent>) {
         self.to_transactions_manager =
             Some(UnboundedMeteredSender::new(tx, NETWORK_POOL_TRANSACTIONS_SCOPE));
+    }
+
+    /// Sets the dedicated channel for [`NetworkBlockEvent`](crate::blocks::NetworkBlockEvent)
+    pub fn set_blocks(&mut self, tx: mpsc::UnboundedSender<NetworkBlockEvent>) {
+        self.network_block_events_tx = Some(tx);
     }
 
     /// Sets the dedicated channel for events indented for the
@@ -266,6 +275,7 @@ where
             num_active_peers,
             metrics: Default::default(),
             disconnect_metrics: Default::default(),
+            network_block_events_tx: None,
         })
     }
 
@@ -383,6 +393,14 @@ where
         }
     }
 
+    /// Notify [`NetworkBlockEvent`](crate::blocks::NetworkBlockEvent) listener if
+    /// configured.
+    fn notify_block_events_listener(&self, event: NetworkBlockEvent) {
+        if let Some(ref tx) = self.network_block_events_tx {
+            let _ = tx.send(event);
+        }
+    }
+
     /// Sends an event to the [`EthRequestManager`](crate::eth_requests::EthRequestHandler) if
     /// configured.
     fn delegate_eth_request(&self, event: IncomingEthRequest) {
@@ -483,16 +501,26 @@ where
     fn on_peer_message(&mut self, peer_id: PeerId, msg: PeerMessage) {
         match msg {
             PeerMessage::NewBlockHashes(hashes) => {
+                let msg = hashes.clone();
                 self.within_pow_or_disconnect(peer_id, |this| {
                     // update peer's state, to track what blocks this peer has seen
-                    this.swarm.state_mut().on_new_block_hashes(peer_id, hashes.0)
-                })
+                    this.swarm.state_mut().on_new_block_hashes(peer_id, hashes.0);
+                });
+                self.notify_block_events_listener(NetworkBlockEvent::IncomingNewBlockHashes {
+                    peer_id,
+                    msg,
+                });
             }
             PeerMessage::NewBlock(block) => {
+                let msg = block.clone();
                 self.within_pow_or_disconnect(peer_id, move |this| {
                     this.swarm.state_mut().on_new_block(peer_id, block.hash);
                     // start block import process
                     this.block_import.on_new_block(peer_id, block);
+                });
+                self.notify_block_events_listener(NetworkBlockEvent::IncomingNewBlockMessage {
+                    peer_id,
+                    msg,
                 });
             }
             PeerMessage::PooledTransactions(msg) => {
@@ -532,7 +560,7 @@ where
                 if self.handle.mode().is_stake() {
                     // See [EIP-3675](https://eips.ethereum.org/EIPS/eip-3675#devp2p)
                     warn!(target: "net", "Peer performed block propagation, but it is not supported in proof of stake (EIP-3675)");
-                    return
+                    return;
                 }
                 let msg = NewBlockMessage { hash, block: Arc::new(block) };
                 self.swarm.state_mut().announce_new_block(msg);
@@ -962,7 +990,7 @@ where
         if maybe_more_handle_messages || maybe_more_swarm_events {
             // make sure we're woken up again
             cx.waker().wake_by_ref();
-            return Poll::Pending
+            return Poll::Pending;
         }
 
         this.update_poll_metrics(start, poll_durations);
