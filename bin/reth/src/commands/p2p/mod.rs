@@ -104,7 +104,7 @@ impl Command {
 
         // add network name to data dir
         let data_dir = self.datadir.unwrap_or_chain_default(self.chain.chain);
-        let config_path = self.config.clone().unwrap_or(data_dir.config_path());
+        let config_path = self.config.clone().unwrap_or_else(|| data_dir.config_path());
 
         let mut config: Config = confy::load_path(&config_path).unwrap_or_default();
 
@@ -116,7 +116,7 @@ impl Command {
             eyre::bail!("No trusted nodes. Set trusted peer with `--trusted-peer <enode record>` or set `--trusted-only` to `false`")
         }
 
-        config.peers.connect_trusted_nodes_only = self.trusted_only;
+        config.peers.trusted_nodes_only = self.trusted_only;
 
         let default_secret_key_path = data_dir.p2p_secret_path();
         let secret_key_path = self.p2p_secret_key.clone().unwrap_or(default_secret_key_path);

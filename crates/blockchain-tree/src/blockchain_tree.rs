@@ -930,11 +930,14 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
         if let Some(header) = canonical_header {
             info!(target: "blockchain_tree", ?block_hash, "Block is already canonical, ignoring.");
             // TODO: this could be fetched from the chainspec first
-            let td = self.externals.provider_factory.provider()?.header_td(block_hash)?.ok_or(
-                CanonicalError::from(BlockValidationError::MissingTotalDifficulty {
-                    hash: *block_hash,
-                }),
-            )?;
+            let td =
+                self.externals.provider_factory.provider()?.header_td(block_hash)?.ok_or_else(
+                    || {
+                        CanonicalError::from(BlockValidationError::MissingTotalDifficulty {
+                            hash: *block_hash,
+                        })
+                    },
+                )?;
             if !self
                 .externals
                 .provider_factory
@@ -1013,7 +1016,6 @@ impl<DB: Database, EVM: ExecutorFactory> BlockchainTree<DB, EVM> {
             self.commit_canonical_to_database(new_canon_chain, &mut durations_recorder)?;
         } else {
             // it forks to canonical block that is not the tip.
-
             let canon_fork: BlockNumHash = new_canon_chain.fork_block();
             // sanity check
             if self.block_indices().canonical_hash(&canon_fork.number) != Some(canon_fork.hash) {
@@ -1278,7 +1280,7 @@ mod tests {
                 .shanghai_activated()
                 .build(),
         );
-        let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec.clone());
+        let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec);
         let consensus = Arc::new(TestConsensus::default());
         let executor_factory = TestExecutorFactory::default();
         executor_factory.extend(exec_res);
@@ -1517,7 +1519,7 @@ mod tests {
             mock_block(3, Some(sidechain_block_1.hash()), Vec::from([mock_tx(2)]), 3);
 
         let mut tree = BlockchainTree::new(
-            TreeExternals::new(provider_factory.clone(), consensus, executor_factory.clone()),
+            TreeExternals::new(provider_factory, consensus, executor_factory),
             BlockchainTreeConfig::default(),
             None,
         )
@@ -1541,7 +1543,7 @@ mod tests {
         );
 
         assert_eq!(
-            tree.insert_block(canonical_block_2.clone(), BlockValidationKind::Exhaustive).unwrap(),
+            tree.insert_block(canonical_block_2, BlockValidationKind::Exhaustive).unwrap(),
             InsertPayloadOk::Inserted(BlockStatus::Valid(BlockAttachment::Canonical))
         );
 
@@ -1592,7 +1594,7 @@ mod tests {
         let genesis = data.genesis;
 
         // test pops execution results from vector, so order is from last to first.
-        let externals = setup_externals(vec![exec5.clone(), exec4.clone(), exec3, exec2, exec1]);
+        let externals = setup_externals(vec![exec5.clone(), exec4, exec3, exec2, exec1]);
 
         // last finalized block would be number 9.
         setup_genesis(&externals.provider_factory, genesis);

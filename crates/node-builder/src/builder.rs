@@ -154,12 +154,12 @@ impl<DB, State> NodeBuilder<DB, State> {
         let config_path = self.config.config.clone().unwrap_or_else(|| data_dir.config_path());
 
         let mut config = confy::load_path::<reth_config::Config>(&config_path)
-            .wrap_err_with(|| format!("Could not load config file {:?}", config_path))?;
+            .wrap_err_with(|| format!("Could not load config file {config_path:?}"))?;
 
         info!(target: "reth::cli", path = ?config_path, "Configuration loaded");
 
         // Update the config with the command line arguments
-        config.peers.connect_trusted_nodes_only = self.config.network.trusted_only;
+        config.peers.trusted_nodes_only = self.config.network.trusted_only;
 
         if !self.config.network.trusted_peers.is_empty() {
             info!(target: "reth::cli", "Adding trusted nodes");
@@ -461,7 +461,7 @@ where
 
         let genesis_hash = init_genesis(provider_factory.clone())?;
 
-        info!(target: "reth::cli", "{}",config.chain.display_hardforks());
+        info!(target: "reth::cli", "\n{}", config.chain.display_hardforks());
 
         let consensus = config.consensus();
 
@@ -470,7 +470,7 @@ where
         let sync_metrics_listener = reth_stages::MetricsListener::new(sync_metrics_rx);
         executor.spawn_critical("stages metrics listener task", sync_metrics_listener);
 
-        let prune_config = config.prune_config()?.or(reth_config.prune.clone());
+        let prune_config = config.prune_config()?.or_else(|| reth_config.prune.clone());
 
         let evm_config = types.evm_config();
         let tree_config = BlockchainTreeConfig::default();
