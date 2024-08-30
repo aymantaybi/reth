@@ -2,6 +2,7 @@
 
 use std::task::{Context, Poll};
 
+use reth_eth_wire::NewBlockHashes;
 use reth_network_peers::PeerId;
 
 use crate::message::NewBlockMessage;
@@ -16,6 +17,9 @@ pub trait BlockImport: std::fmt::Debug + Send + Sync {
     /// This is supposed to start verification. The results are then expected to be returned via
     /// [`BlockImport::poll`].
     fn on_new_block(&mut self, peer_id: PeerId, incoming_block: NewBlockMessage);
+
+    ///
+    fn on_new_block_hashes(&mut self, peer_id: PeerId, incoming_block_hashes: NewBlockHashes);
 
     /// Returns the results of a [`BlockImport::on_new_block`]
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<BlockImportOutcome>;
@@ -64,6 +68,8 @@ pub struct ProofOfStakeBlockImport;
 
 impl BlockImport for ProofOfStakeBlockImport {
     fn on_new_block(&mut self, _peer_id: PeerId, _incoming_block: NewBlockMessage) {}
+
+    fn on_new_block_hashes(&mut self, _peer_id: PeerId, _incoming_block_hashes: NewBlockHashes) {}
 
     fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<BlockImportOutcome> {
         Poll::Pending
