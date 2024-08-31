@@ -1344,7 +1344,6 @@ impl TransactionSigned {
         // length of tx encoding = tx type byte (size = 1) + length of header + payload length
         let tx_length = 1 + header.length() + header.payload_length;
 
-        dbg!(&tx_type);
         // decode common fields
         let Ok(tx_type) = TxType::try_from(tx_type) else {
             return Err(RlpError::Custom("unsupported typed transaction type"));
