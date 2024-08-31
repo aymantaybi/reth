@@ -31,6 +31,9 @@ pub const EIP7702_TX_TYPE_ID: u8 = 4;
 #[cfg(feature = "optimism")]
 pub const DEPOSIT_TX_TYPE_ID: u8 = 126;
 
+/// Identifier for [`TxDeposit`](crate::TxDeposit) transaction.
+pub const SPONSORED_TX_TYPE_ID: u8 = 100;
+
 /// Transaction Type
 ///
 /// Currently being used as 2-bit type when encoding it to `reth_codecs::Compact` on
@@ -58,6 +61,8 @@ pub enum TxType {
     /// Optimism Deposit transaction.
     #[cfg(feature = "optimism")]
     Deposit = 126_isize,
+    /// Sponsored
+    Sponsored = 100_isize,
 }
 
 impl TxType {
@@ -67,7 +72,7 @@ impl TxType {
     /// Check if the transaction type has an access list.
     pub const fn has_access_list(&self) -> bool {
         match self {
-            Self::Legacy => false,
+            Self::Legacy | Self::Sponsored => false,
             Self::Eip2930 | Self::Eip1559 | Self::Eip4844 | Self::Eip7702 => true,
             #[cfg(feature = "optimism")]
             Self::Deposit => false,
@@ -85,6 +90,7 @@ impl From<TxType> for u8 {
             TxType::Eip7702 => EIP7702_TX_TYPE_ID,
             #[cfg(feature = "optimism")]
             TxType::Deposit => DEPOSIT_TX_TYPE_ID,
+            TxType::Sponsored => SPONSORED_TX_TYPE_ID,
         }
     }
 }
@@ -101,19 +107,21 @@ impl TryFrom<u8> for TxType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         #[cfg(feature = "optimism")]
         if value == Self::Deposit {
-            return Ok(Self::Deposit)
+            return Ok(Self::Deposit);
         }
 
         if value == Self::Legacy {
-            return Ok(Self::Legacy)
+            return Ok(Self::Legacy);
         } else if value == Self::Eip2930 {
-            return Ok(Self::Eip2930)
+            return Ok(Self::Eip2930);
         } else if value == Self::Eip1559 {
-            return Ok(Self::Eip1559)
+            return Ok(Self::Eip1559);
         } else if value == Self::Eip4844 {
-            return Ok(Self::Eip4844)
+            return Ok(Self::Eip4844);
         } else if value == Self::Eip7702 {
-            return Ok(Self::Eip7702)
+            return Ok(Self::Eip7702);
+        } else if value == Self::Sponsored {
+            return Ok(Self::Sponsored);
         }
 
         Err("invalid tx type")
@@ -160,6 +168,7 @@ impl reth_codecs::Compact for TxType {
                 buf.put_u8(*self as u8);
                 COMPACT_EXTENDED_IDENTIFIER_FLAG
             }
+            Self::Sponsored => 100,
         }
     }
 

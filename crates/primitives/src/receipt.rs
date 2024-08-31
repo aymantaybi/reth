@@ -251,7 +251,7 @@ impl ReceiptWithBloom {
         let b = &mut &**buf;
         let rlp_head = alloy_rlp::Header::decode(b)?;
         if !rlp_head.list {
-            return Err(alloy_rlp::Error::UnexpectedString)
+            return Err(alloy_rlp::Error::UnexpectedString);
         }
         let started_len = b.len();
 
@@ -296,7 +296,7 @@ impl ReceiptWithBloom {
             return Err(alloy_rlp::Error::ListLengthMismatch {
                 expected: rlp_head.payload_length,
                 got: consumed,
-            })
+            });
         }
         *buf = *b;
         Ok(this)
@@ -349,6 +349,10 @@ impl Decodable for ReceiptWithBloom {
                     0x7E => {
                         buf.advance(1);
                         Self::decode_receipt(buf, TxType::Deposit)
+                    }
+                    0x64 => {
+                        buf.advance(1);
+                        Self::decode_receipt(buf, TxType::Sponsored)
                     }
                     _ => Err(alloy_rlp::Error::Custom("invalid receipt type")),
                 }
@@ -453,7 +457,7 @@ impl<'a> ReceiptWithBloomEncoder<'a> {
     fn encode_inner(&self, out: &mut dyn BufMut, with_header: bool) {
         if matches!(self.receipt.tx_type, TxType::Legacy) {
             self.encode_fields(out);
-            return
+            return;
         }
 
         let mut payload = Vec::new();
@@ -483,6 +487,9 @@ impl<'a> ReceiptWithBloomEncoder<'a> {
             #[cfg(feature = "optimism")]
             TxType::Deposit => {
                 out.put_u8(0x7E);
+            }
+            TxType::Sponsored => {
+                out.put_u8(0x64);
             }
         }
         out.put_slice(payload.as_ref());
@@ -663,5 +670,14 @@ mod tests {
         receipt.to_compact(&mut data);
         let (decoded, _) = Receipt::from_compact(&data[..], data.len());
         assert_eq!(decoded, receipt);
+    }
+
+    #[test]
+    fn decode_sponsored_receipt() {
+        let data = hex!("64f901c58001b9010000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000010000080000000000000000000004000000000000000000000000000040000000000000000000000000000800000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000f8bef85d940000000000000000000000000000000000000011f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100fff85d940000000000000000000000000000000000000111f842a0000000000000000000000000000000000000000000000000000000000000deada0000000000000000000000000000000000000000000000000000000000000beef830100ff");
+
+        let receipt = ReceiptWithBloom::decode(&mut &data[..]).unwrap();
+
+        dbg!(receipt);
     }
 }

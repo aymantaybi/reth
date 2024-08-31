@@ -1,9 +1,10 @@
 //! Common conversions from alloy types.
 
 use crate::{
-    constants::EMPTY_TRANSACTIONS, transaction::extract_chain_id, Block, Signature, Transaction,
-    TransactionSigned, TransactionSignedEcRecovered, TransactionSignedNoHash, TxEip1559, TxEip2930,
-    TxEip4844, TxLegacy, TxType,
+    constants::EMPTY_TRANSACTIONS,
+    transaction::{extract_chain_id, TxSponsored},
+    Block, Signature, Transaction, TransactionSigned, TransactionSignedEcRecovered,
+    TransactionSignedNoHash, TxEip1559, TxEip2930, TxEip4844, TxLegacy, TxType,
 };
 use alloy_primitives::TxKind;
 use alloy_rlp::Error as RlpError;
@@ -38,8 +39,8 @@ impl TryFrom<alloy_rpc_types::Block> for Block {
                         ))
                     })
                     .collect(),
-                alloy_rpc_types::BlockTransactions::Hashes(_) |
-                alloy_rpc_types::BlockTransactions::Uncle => {
+                alloy_rpc_types::BlockTransactions::Hashes(_)
+                | alloy_rpc_types::BlockTransactions::Uncle => {
                     // alloy deserializes empty blocks into `BlockTransactions::Hashes`, if the tx
                     // root is the empty root then we can just return an empty vec.
                     if block.header.transactions_root == EMPTY_TRANSACTIONS {
@@ -82,7 +83,7 @@ impl TryFrom<alloy_rpc_types::Transaction> for Transaction {
                     return Err(ConversionError::Eip2718Error(
                         RlpError::Custom("EIP-1559 fields are present in a legacy transaction")
                             .into(),
-                    ))
+                    ));
                 }
 
                 // extract the chain id if possible
@@ -98,7 +99,7 @@ impl TryFrom<alloy_rpc_types::Transaction> for Transaction {
                                 .map_err(|err| ConversionError::Eip2718Error(err.into()))?
                                 .1
                         } else {
-                            return Err(ConversionError::MissingChainId)
+                            return Err(ConversionError::MissingChainId);
                         }
                     }
                 };
@@ -230,6 +231,11 @@ impl TryFrom<alloy_rpc_types::Transaction> for Transaction {
                     is_system_transaction: fields.is_system_tx.unwrap_or(false),
                     input: tx.input,
                 }))
+            }
+            Some(TxType::Sponsored) => {
+                // this is currently unsupported as it is not present in alloy due to missing rpc
+                // specs
+                Err(ConversionError::Custom("Unimplemented".to_string()))
             }
         }
     }
