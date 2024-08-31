@@ -203,7 +203,7 @@ impl TxSponsored {
 
     /// Get transaction type
     pub(crate) const fn tx_type(&self) -> TxType {
-        TxType::Eip1559
+        TxType::Sponsored
     }
 
     /// Calculates a heuristic for the in-memory size of the [`TxEip1559`] transaction.
