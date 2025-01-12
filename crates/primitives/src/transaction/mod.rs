@@ -6,7 +6,7 @@ pub use alloy_consensus::transaction::PooledTransaction;
 use alloy_consensus::{
     transaction::RlpEcdsaTx, SignableTransaction, Signed, Transaction as _, TxEip1559, TxEip2930,
     TxEip4844, TxEip4844Variant, TxEip4844WithSidecar, TxEip7702, TxEnvelope, TxLegacy, Typed2718,
-    TypedTransaction,
+    TypedTransaction, TxSponsored
 };
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
@@ -1483,7 +1483,7 @@ macro_rules! impl_from_signed {
     };
 }
 
-impl_from_signed!(TxLegacy, TxEip2930, TxEip1559, TxEip7702, TxEip4844, TypedTransaction);
+impl_from_signed!(TxLegacy, TxEip2930, TxEip1559, TxEip7702, TxEip4844, TypedTransaction, TxSponsored);
 
 impl From<Signed<Transaction>> for TransactionSigned {
     fn from(value: Signed<Transaction>) -> Self {
