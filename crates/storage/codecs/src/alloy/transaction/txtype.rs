@@ -1,7 +1,7 @@
 //! Compact implementation for [`TxType`]
 
 use crate::txtype::{COMPACT_EXTENDED_IDENTIFIER_FLAG, COMPACT_IDENTIFIER_EIP1559, COMPACT_IDENTIFIER_EIP2930, COMPACT_IDENTIFIER_LEGACY};
-use alloy_consensus::constants::{EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID};
+use alloy_consensus::constants::{EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID, SPONSORED_TX_TYPE_ID};
 use alloy_consensus::TxType;
 
 impl crate::Compact for TxType {
@@ -21,6 +21,10 @@ impl crate::Compact for TxType {
             }
             Self::Eip7702 => {
                 buf.put_u8(EIP7702_TX_TYPE_ID);
+                COMPACT_EXTENDED_IDENTIFIER_FLAG
+            }
+            Self::Sponsored => {
+                buf.put_u8(SPONSORED_TX_TYPE_ID);
                 COMPACT_EXTENDED_IDENTIFIER_FLAG
             }
         }
@@ -55,7 +59,7 @@ impl crate::Compact for TxType {
 mod tests {
     use super::*;
     use rstest::rstest;
-    
+
     use alloy_consensus::constants::{EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID};
     use crate::Compact;
 

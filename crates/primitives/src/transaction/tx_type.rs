@@ -1,7 +1,7 @@
 use alloy_consensus::{
     constants::{
         EIP1559_TX_TYPE_ID, EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID,
-        LEGACY_TX_TYPE_ID,
+        LEGACY_TX_TYPE_ID, SPONSORED_TX_TYPE_ID,
     },
     Typed2718,
 };
@@ -56,6 +56,9 @@ pub enum TxType {
     #[cfg(feature = "optimism")]
     #[display("deposit (126)")]
     Deposit = 126_isize,
+    /// Sponsored
+    #[display("sponsored (100)")]
+    Sponsored = 100_isize,
 }
 
 impl TxType {
@@ -65,7 +68,7 @@ impl TxType {
     /// Check if the transaction type has an access list.
     pub const fn has_access_list(&self) -> bool {
         match self {
-            Self::Legacy => false,
+            Self::Legacy | Self::Sponsored => false,
             Self::Eip2930 | Self::Eip1559 | Self::Eip4844 | Self::Eip7702 => true,
             #[cfg(feature = "optimism")]
             Self::Deposit => false,
@@ -95,6 +98,7 @@ impl From<TxType> for u8 {
             TxType::Eip1559 => EIP1559_TX_TYPE_ID,
             TxType::Eip4844 => EIP4844_TX_TYPE_ID,
             TxType::Eip7702 => EIP7702_TX_TYPE_ID,
+            TxType::Sponsored => SPONSORED_TX_TYPE_ID,
             #[cfg(feature = "optimism")]
             TxType::Deposit => op_alloy_consensus::DEPOSIT_TX_TYPE_ID,
         }
@@ -126,6 +130,8 @@ impl TryFrom<u8> for TxType {
             return Ok(Self::Eip4844)
         } else if value == Self::Eip7702 {
             return Ok(Self::Eip7702)
+        } else if value == Self::Sponsored {
+            return Ok(Self::Sponsored)
         }
 
         Err("invalid tx type")
@@ -167,6 +173,10 @@ impl reth_codecs::Compact for TxType {
             }
             Self::Eip7702 => {
                 buf.put_u8(EIP7702_TX_TYPE_ID);
+                COMPACT_EXTENDED_IDENTIFIER_FLAG
+            }
+            Self::Sponsored => {
+                buf.put_u8(SPONSORED_TX_TYPE_ID);
                 COMPACT_EXTENDED_IDENTIFIER_FLAG
             }
             #[cfg(feature = "optimism")]
