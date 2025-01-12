@@ -52,13 +52,13 @@ pub enum TxType {
     /// EOA Contract Code Transactions - EIP-7702
     #[display("eip7702 (4)")]
     Eip7702 = 4_isize,
+    /// Sponsored
+    #[display("sponsored (100)")]
+    Sponsored = 100_isize,
     /// Optimism Deposit transaction.
     #[cfg(feature = "optimism")]
     #[display("deposit (126)")]
     Deposit = 126_isize,
-    /// Sponsored
-    #[display("sponsored (100)")]
-    Sponsored = 100_isize,
 }
 
 impl TxType {
